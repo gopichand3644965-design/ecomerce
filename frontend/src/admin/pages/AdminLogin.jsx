@@ -98,7 +98,7 @@ export default function AdminLogin() {
 
         <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           <p className="font-semibold text-slate-900 dark:text-white">Quick access</p>
-          <p>Use <span className="font-semibold">admin@pandasstore.com</span> and your secure password.</p>
+          <p>Use <span className="font-semibold">admin@pandasstore.com</span> and password <span className="font-semibold">Admin@1234</span>.</p>
         </div>
       </div>
     </div>

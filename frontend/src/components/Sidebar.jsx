@@ -8,7 +8,6 @@ const menuItems = [
   { name: 'Orders', to: '/orders' },
   { name: 'Wishlist', to: '/wishlist' },
   { name: 'Settings', to: '/settings' },
-  { name: 'Admin Portal', to: '/admin', isAdmin: true },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {

@@ -19,6 +19,19 @@ function getStoredAdmin() {
   }
 }
 
+async function parseJsonResponse(response) {
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+  }
+  return { response, data, text };
+}
+
 export function AdminAuthProvider({ children }) {
   const navigate = useNavigate();
   const [admin, setAdmin] = useState(getStoredAdmin());
@@ -51,12 +64,12 @@ export function AdminAuthProvider({ children }) {
           },
         });
 
-        if (!response.ok) {
-          throw new Error('Session expired. Please log in again.');
+        const { response: verifiedResponse, data } = await parseJsonResponse(response);
+        if (!verifiedResponse.ok) {
+          throw new Error(data?.error || 'Session expired. Please log in again.');
         }
 
-        const data = await response.json();
-        setAdmin(data.admin);
+        setAdmin(data?.admin || null);
         setError(null);
       } catch (err) {
         console.warn('Admin auth verify failed:', err);
@@ -89,9 +102,9 @@ export function AdminAuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Unable to sign in.');
+      const { response: loginResponse, data } = await parseJsonResponse(response);
+      if (!loginResponse.ok) {
+        throw new Error(data?.error || 'Unable to sign in.');
       }
 
       saveSession(data.token, data.admin);
