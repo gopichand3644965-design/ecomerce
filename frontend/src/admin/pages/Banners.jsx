@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getBannersApi, createBannerApi, updateBannerApi, deleteBannerApi, uploadBannerImageApi, reorderBannersApi } from '../../api';
+import { getBannersApi, createBannerApi, updateBannerApi, deleteBannerApi, uploadBannerImageApi, reorderBannersApi, getImageUrl } from '../../api';
 import { FiPlus, FiTrash2, FiUpload, FiEdit } from 'react-icons/fi';
 
 export default function Banners() {
@@ -151,7 +151,7 @@ export default function Banners() {
                   className={`flex items-center gap-3 p-3 rounded-lg border ${dragOverIndex === idx ? 'bg-gray-50 dark:bg-gray-700' : ''}`}
                 >
                   <div className="w-32 h-16 bg-gray-100 overflow-hidden rounded">
-                    <img src={b.image} alt={b.title} className="w-full h-full object-cover object-center" />
+                    <img src={getImageUrl(b.image)} alt={b.title} className="w-full h-full object-cover object-center" />
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold">{b.title}</div>

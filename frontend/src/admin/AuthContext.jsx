@@ -39,6 +39,10 @@ export function AdminAuthProvider({ children }) {
   const [loading, setLoading] = useState(Boolean(token));
   const [error, setError] = useState(null);
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+  const verifyUrl = `${API_BASE}/api/admin/verify`;
+  const loginUrl = `${API_BASE}/api/admin/login`;
+
   const handleLogout = useCallback((redirectToLogin = true) => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminInfo');
@@ -58,7 +62,7 @@ export function AdminAuthProvider({ children }) {
       }
 
       try {
-        const response = await fetch('/api/admin/verify', {
+        const response = await fetch(verifyUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -89,8 +93,7 @@ export function AdminAuthProvider({ children }) {
     setAdmin(adminInfo);
   }
 
-  const API_BASE = import.meta.env.VITE_API_URL || '';
-  const loginUrl = API_BASE ? `${API_BASE}/api/admin/login` : '/api/admin/login';
+
 
   const login = useCallback(async (email, password) => {
     setLoading(true);

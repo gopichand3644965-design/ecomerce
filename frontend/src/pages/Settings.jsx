@@ -9,7 +9,7 @@ export default function Settings() {
   const [error, setError] = useState('');
 
   const API_BASE = import.meta.env.VITE_API_URL || '';
-  const loginUrl = API_BASE ? `${API_BASE}/api/admin/login` : '/api/admin/login';
+  const loginUrl = `${API_BASE}/api/admin/login`;
 
   const handleLogin = async (event) => {
     event.preventDefault();

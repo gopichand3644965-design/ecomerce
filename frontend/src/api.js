@@ -1,4 +1,14 @@
-const BASE_URL = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '';
+const BASE_URL = `${API_BASE}/api`;
+
+export function getImageUrl(imagePath) {
+  if (!imagePath) return '';
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  return `${API_BASE}${imagePath}`;
+}
+
 
 function getAuthToken() {
   if (typeof window === 'undefined') return null;

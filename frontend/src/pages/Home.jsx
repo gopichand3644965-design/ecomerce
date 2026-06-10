@@ -6,7 +6,7 @@ import useProducts from '../hooks/useProducts';
 import useSearch from '../hooks/useSearch';
 import { FiChevronRight, FiChevronLeft } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
-import { getBannersApi } from '../api';
+import { getBannersApi, getImageUrl } from '../api';
 
 // banners will be loaded from API
 
@@ -109,7 +109,7 @@ export default function Home({ searchQuery = '' }) {
                   <div className="absolute inset-0 bg-black/40 z-10" />
                   {banners && banners.length > 0 ? (
                     <img
-                      src={banners[currentBanner]?.image}
+                      src={getImageUrl(banners[currentBanner]?.image)}
                       alt="Banner"
                       className="w-full h-full object-cover object-center"
                     />

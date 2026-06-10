@@ -530,8 +530,13 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: err.message || 'Internal Server Error' });
 });
 
-app.listen(PORT, async () => {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+// Initialize database at startup (top-level async IIFE)
+(async () => {
+  try {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+  } catch (err) {
+    // Ignore error if folder creation fails
+  }
   try {
     await initProductsDb();
     console.log('Products DB initialized and connected.');
@@ -539,5 +544,14 @@ app.listen(PORT, async () => {
     productsDbAvailable = false;
     console.warn('Products DB not available, falling back to JSON storage:', err && err.message ? err.message : err);
   }
-  console.log(`Backend running on http://localhost:${PORT}`);
-});
+})();
+
+// Start server locally (if run directly, not required by Vercel)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Backend running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
+
