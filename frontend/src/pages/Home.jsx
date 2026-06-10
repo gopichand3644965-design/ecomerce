@@ -191,7 +191,7 @@ export default function Home({ searchQuery = '' }) {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`whitespace-normal px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   selectedCategory === cat 
                   ? 'bg-primary text-white shadow-md' 
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'

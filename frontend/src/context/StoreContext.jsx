@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import { getOrdersApi, createOrderApi, updateOrderStatusApi, getCartApi, saveCartApi } from '../api';
+import { getOrdersApi, createOrderApi, updateOrderStatusApi, getCartApi, saveCartApi, getWishlistApi, saveWishlistApi } from '../api';
 
 const StoreContext = createContext();
 
@@ -91,6 +91,15 @@ export const StoreProvider = ({ children }) => {
       }
 
       try {
+        const wishlist = await getWishlistApi();
+        if (Array.isArray(wishlist) && wishlist.length > 0) {
+          dispatch({ type: 'SET_STATE', payload: { wishlist } });
+        }
+      } catch {
+        // fallback to local wishlist if backend is not available
+      }
+
+      try {
         const orders = await getOrdersApi();
         dispatch({ type: 'SET_ORDERS', payload: orders });
       } catch {
@@ -120,6 +129,13 @@ export const StoreProvider = ({ children }) => {
       console.error('Could not save cart to backend:', err.message);
     });
   }, [state.cart]);
+
+  useEffect(() => {
+    if (!cartLoadedRef.current) return;
+    saveWishlistApi(state.wishlist).catch((err) => {
+      console.error('Could not save wishlist to backend:', err.message);
+    });
+  }, [state.wishlist]);
 
   const addToCart = (id) => {
     dispatch({ type: 'ADD_TO_CART', payload: { id } });

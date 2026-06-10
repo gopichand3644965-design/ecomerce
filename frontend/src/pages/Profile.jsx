@@ -256,7 +256,7 @@ export default function Profile() {
                   <div className="text-sm text-gray-600 dark:text-gray-400">{a.address}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">{a.city}, {a.country}</div>
                 </div>
-                <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto">
+                <div className="flex flex-col min-[480px]:flex-row sm:flex-col gap-2 w-full sm:w-auto">
                   <button type="button" onClick={() => navigator.clipboard.writeText(`${a.address}, ${a.city}, ${a.country}`)} className="flex-1 sm:w-auto px-3 py-1 rounded-md border border-gray-300 dark:border-gray-600 text-sm bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800">Copy</button>
                   <button type="button" onClick={() => applySavedAddress(a)} className="flex-1 sm:w-auto px-3 py-1 rounded-md border border-blue-300 dark:border-blue-600 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30">Use this address</button>
                   <button type="button" onClick={() => removeAddress(a.id)} className="flex-1 sm:w-auto px-3 py-1 rounded-md border border-red-300 dark:border-red-600 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30">Remove</button>

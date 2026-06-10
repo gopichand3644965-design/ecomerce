@@ -89,12 +89,15 @@ export function AdminAuthProvider({ children }) {
     setAdmin(adminInfo);
   }
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+  const loginUrl = API_BASE ? `${API_BASE}/api/admin/login` : '/api/admin/login';
+
   const login = useCallback(async (email, password) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

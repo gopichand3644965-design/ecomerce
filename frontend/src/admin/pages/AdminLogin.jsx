@@ -44,7 +44,7 @@ export default function AdminLogin() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="admin-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Email address
+              Email / Username
             </label>
             <input
               id="admin-email"

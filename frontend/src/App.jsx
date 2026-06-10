@@ -4,12 +4,11 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
-import CartDrawer from './components/CartDrawer';
 import WishlistDrawer from './components/WishlistDrawer';
 import Wishlist from './pages/Wishlist';
-import Cart from './pages/Cart';
 import Orders from './pages/Orders';
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 import AdminApp from './admin/AdminApp';
 
 export default function App() {
@@ -28,10 +27,7 @@ export default function App() {
   }, [searchQuery]);
 
   // Drawer state
-  const [isCartOpen, setCartOpen] = useState(false);
   const [isWishlistOpen, setWishlistOpen] = useState(false);
-  const openCart = () => setCartOpen(true);
-  const closeCart = () => setCartOpen(false);
   const openWishlist = () => setWishlistOpen(true);
   const closeWishlist = () => setWishlistOpen(false);
 
@@ -50,7 +46,6 @@ export default function App() {
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900">
       <Header
         onMenuClick={toggleSidebar}
-        onCartClick={openCart}
         onWishlistClick={openWishlist}
         query={searchQuery}
         setQuery={setSearchQuery}
@@ -62,14 +57,14 @@ export default function App() {
             <Route path="/" element={<Home searchQuery={searchQuery} />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/cart" element={<Cart />} />
+            {/* Cart route removed */}
             <Route path="/orders" element={<Orders />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Home searchQuery={searchQuery} />} />
           </Routes>
         </main>
       </div>
-      <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
       <WishlistDrawer isOpen={isWishlistOpen} onClose={closeWishlist} />
     </div>
   );

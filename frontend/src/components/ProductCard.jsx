@@ -3,12 +3,12 @@
 import { Link } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { formatPrice } from '../utils/formatPrice';
-import { FiHeart, FiShoppingCart } from 'react-icons/fi';
+import { FiHeart } from 'react-icons/fi';
 import RatingStars from './RatingStars';
 import { motion } from 'framer-motion';
 
 export default function ProductCard({ product }) {
-  const { state, addToCart, toggleWishlist } = useStore();
+  const { state, toggleWishlist } = useStore();
   const inWishlist = state.wishlist.includes(product.id);
 
   return (
@@ -29,17 +29,7 @@ export default function ProductCard({ product }) {
           className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        {/* Quick add button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            addToCart(product.id);
-          }}
-          className="absolute bottom-2 right-2 bg-primary hover:bg-primary-dark text-white p-2 rounded-full transition-colors"
-          aria-label="Add to cart"
-        >
-          <FiShoppingCart />
-        </button>
+        {/* Quick add button removed per request */}
         {/* Wishlist toggle */}
         <button
           onClick={(e) => {

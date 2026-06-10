@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiHeart, FiShoppingCart, FiUser, FiInstagram, FiSearch } from 'react-icons/fi';
+import { FiMenu, FiHeart, FiInstagram, FiSearch } from 'react-icons/fi';
 import SearchBar from './SearchBar';
 
-export default function Header({ onMenuClick, onCartClick, onWishlistClick, query, setQuery }) {
+export default function Header({ onMenuClick, onWishlistClick, query, setQuery }) {
   const [searchOpen, setSearchOpen] = useState(false);
-  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -55,12 +53,6 @@ export default function Header({ onMenuClick, onCartClick, onWishlistClick, quer
           </a>
           <button aria-label="Wishlist" className="p-1.5 sm:p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0" onClick={onWishlistClick}>
             <FiHeart className="w-5 sm:w-5 h-5 sm:h-5 text-primary" />
-          </button>
-          <button aria-label="Cart" className="p-1.5 sm:p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0" onClick={onCartClick}>
-            <FiShoppingCart className="w-5 sm:w-5 h-5 sm:h-5 text-primary" />
-          </button>
-          <button aria-label="Profile" className="p-1.5 sm:p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0" onClick={() => navigate('/profile')}>
-            <FiUser className="w-5 sm:w-5 h-5 sm:h-5 text-primary" />
           </button>
         </div>
       </div>

@@ -14,7 +14,9 @@ export default function ProductEdit() {
   const [form, setForm] = useState({
     title: existingProduct.title || '',
     productCode: existingProduct.productCode || '',
+    link: existingProduct.link || existingProduct.url || '',
     price: existingProduct.price || 0,
+    rating: existingProduct.rating || 0,
     stock: existingProduct.stock || 0,
     sizes: existingProduct.sizes?.join(',') || '',
     colors: existingProduct.colors?.join(',') || '',
@@ -44,7 +46,9 @@ export default function ProductEdit() {
         setForm({
           title: product.title || '',
           productCode: product.productCode || '',
+          link: product.link || product.url || '',
           price: product.price || 0,
+          rating: product.rating || 0,
           stock: product.stock || 0,
           sizes: product.sizes?.join(',') || '',
           colors: product.colors?.join(',') || '',
@@ -125,6 +129,7 @@ export default function ProductEdit() {
     const payload = {
       title: form.title,
       productCode: form.productCode,
+      link: form.link || '',
       price: Number(form.price),
       stock: Number(form.stock),
       sizes: form.sizes ? form.sizes.split(',').map((s) => s.trim()) : [],
@@ -137,6 +142,7 @@ export default function ProductEdit() {
       discount: Number(form.discount),
       isTrending: form.isTrending,
       isNewArrival: form.isNewArrival,
+      rating: Number(form.rating || 0),
     };
 
     if (id) {
@@ -149,16 +155,20 @@ export default function ProductEdit() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       <h2 className="text-xl font-semibold mb-4">{id ? 'Edit product' : 'Add product'}</h2>
       <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-gray-800 p-4 rounded-xl border">
-        <label className="block">
+        <label className="block break-words">
           <span className="text-sm">Title</span>
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full mt-1 rounded-md border px-3 py-2" />
         </label>
-        <label className="block">
+        <label className="block break-words">
           <span className="text-sm">SKU</span>
           <input value={form.productCode} onChange={(e) => setForm({ ...form, productCode: e.target.value })} className="w-full mt-1 rounded-md border px-3 py-2" />
+        </label>
+        <label className="block break-words">
+          <span className="text-sm">Product Link</span>
+          <input value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} className="w-full mt-1 rounded-md border px-3 py-2" placeholder="https://buy-here.example.com" />
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className="block">
@@ -170,11 +180,21 @@ export default function ProductEdit() {
             <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} className="w-full mt-1 rounded-md border px-3 py-2" />
           </label>
         </div>
-        <label className="block">
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            <span className="text-sm">Rating</span>
+            <input type="number" min="0" max="5" step="0.1" value={form.rating} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })} className="w-full mt-1 rounded-md border px-3 py-2" />
+          </label>
+          <label className="block">
+            <span className="text-sm">Discount (%)</span>
+            <input type="number" min="0" max="100" value={form.discount} onChange={(e) => setForm({ ...form, discount: Number(e.target.value) })} className="w-full mt-1 rounded-md border px-3 py-2" />
+          </label>
+        </div>
+        <label className="block break-words">
           <span className="text-sm">Sizes (comma separated)</span>
           <input value={form.sizes} onChange={(e) => setForm({ ...form, sizes: e.target.value })} className="w-full mt-1 rounded-md border px-3 py-2" />
         </label>
-        <label className="block">
+        <label className="block break-words">
           <span className="text-sm">Colors (comma separated)</span>
           <input value={form.colors} onChange={(e) => setForm({ ...form, colors: e.target.value })} className="w-full mt-1 rounded-md border px-3 py-2" />
         </label>
@@ -192,20 +212,12 @@ export default function ProductEdit() {
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="text-sm">Discount (%)</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={form.discount}
-              onChange={(e) => setForm({ ...form, discount: Math.max(0, Math.min(100, Number(e.target.value))) })}
-              className="w-full mt-1 rounded-md border px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            />
-          </label>
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3 text-sm text-slate-500">
+            Use the toggles below to mark this product as trending or a new arrival. Save to update product details.
+          </div>
         </div>
 
-        <label className="block">
+        <label className="block break-words">
           <span className="text-sm">Description</span>
           <textarea
             value={form.description}

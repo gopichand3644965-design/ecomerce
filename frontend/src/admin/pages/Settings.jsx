@@ -101,6 +101,35 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Admin Portal Access */}
+        <div className="bg-slate-950 text-white p-6 rounded-xl border border-slate-800">
+          <h3 className="text-lg font-semibold mb-4">Admin Portal Access</h3>
+          <div className="space-y-2 text-sm text-slate-300">
+            <p>Admin portal: <span className="font-semibold text-white">/admin/login</span></p>
+            <p>Username: <span className="font-semibold text-white">admin@pandasstore.com</span></p>
+            <p>Password: <span className="font-semibold text-white">Admin@1234</span></p>
+          </div>
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="mb-3 text-sm font-semibold text-white">Admin Login Preview</div>
+            <div className="space-y-3">
+              <div className="rounded-xl bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-2">Email / Username</div>
+                <div className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">admin@pandasstore.com</div>
+              </div>
+              <div className="rounded-xl bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-2">Password</div>
+                <div className="rounded-lg bg-slate-800 px-3 py-2 text-slate-200">Admin@1234</div>
+              </div>
+            </div>
+          </div>
+          <a
+            href="/admin/login"
+            className="mt-5 inline-flex items-center justify-center rounded-3xl bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-dark"
+          >
+            Open Admin Portal
+          </a>
+        </div>
+
         {/* Save Button */}
         <div className="flex items-center gap-4">
           <button 

@@ -154,6 +154,27 @@ async function writeJson(filePath, data) {
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
+async function loadUserData() {
+  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {}, cart: [], wishlist: [] });
+  return {
+    profile: user.profile || {},
+    addresses: Array.isArray(user.addresses) ? user.addresses : [],
+    settings: user.settings || {},
+    cart: Array.isArray(user.cart) ? user.cart : [],
+    wishlist: Array.isArray(user.wishlist) ? user.wishlist : [],
+  };
+}
+
+async function saveUserData(userData) {
+  await writeJson(USER_FILE, {
+    profile: userData.profile || {},
+    addresses: Array.isArray(userData.addresses) ? userData.addresses : [],
+    settings: userData.settings || {},
+    cart: Array.isArray(userData.cart) ? userData.cart : [],
+    wishlist: Array.isArray(userData.wishlist) ? userData.wishlist : [],
+  });
+}
+
 function validateProduct(payload) {
   if (!payload.title || typeof payload.title !== 'string') return 'Product title is required.';
   if (typeof payload.price !== 'number' || Number.isNaN(payload.price)) return 'Product price must be a number.';
@@ -311,70 +332,84 @@ app.put('/api/orders/:id/status', authenticateAdmin, async (req, res) => {
 });
 
 app.get('/api/user/profile', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
+  const user = await loadUserData();
   res.json(user);
 });
 
 app.put('/api/user/profile', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
+  const user = await loadUserData();
   user.profile = { ...user.profile, ...req.body };
-  await writeJson(USER_FILE, user);
+  await saveUserData(user);
   res.json(user.profile);
 });
 
 app.get('/api/user/settings', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
-  res.json(user.settings || {});
+  const user = await loadUserData();
+  res.json(user.settings);
 });
 
 app.put('/api/user/settings', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
+  const user = await loadUserData();
   user.settings = { ...user.settings, ...req.body };
-  await writeJson(USER_FILE, user);
+  await saveUserData(user);
   res.json(user.settings);
 });
 
 app.get('/api/user/addresses', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
-  res.json(user.addresses || []);
+  const user = await loadUserData();
+  res.json(user.addresses);
 });
 
 app.post('/api/user/addresses', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {} });
+  const user = await loadUserData();
   const address = { id: `A-${Date.now()}`, ...req.body };
-  user.addresses = [...(user.addresses || []), address];
-  await writeJson(USER_FILE, user);
+  user.addresses = [...user.addresses, address];
+  await saveUserData(user);
   res.status(201).json(address);
 });
 
 app.delete('/api/user/addresses/:addressId', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {}, cart: [] });
-  const next = (user.addresses || []).filter((a) => a.id !== req.params.addressId);
-  user.addresses = next;
-  await writeJson(USER_FILE, user);
+  const user = await loadUserData();
+  user.addresses = user.addresses.filter((a) => a.id !== req.params.addressId);
+  await saveUserData(user);
   res.status(204).end();
 });
 
 app.get('/api/user/cart', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {}, cart: [] });
-  res.json(user.cart || []);
+  const user = await loadUserData();
+  res.json(user.cart);
 });
 
 app.put('/api/user/cart', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {}, cart: [] });
+  const user = await loadUserData();
   if (!Array.isArray(req.body)) {
     return res.status(400).json({ error: 'Cart payload must be an array.' });
   }
   user.cart = req.body;
-  await writeJson(USER_FILE, user);
+  await saveUserData(user);
   res.json(user.cart);
 });
 
 app.delete('/api/user/cart', async (req, res) => {
-  const user = await readJson(USER_FILE, { profile: {}, addresses: [], settings: {}, cart: [] });
+  const user = await loadUserData();
   user.cart = [];
-  await writeJson(USER_FILE, user);
+  await saveUserData(user);
   res.status(204).end();
+});
+
+app.get('/api/user/wishlist', async (req, res) => {
+  const user = await loadUserData();
+  res.json(user.wishlist);
+});
+
+app.put('/api/user/wishlist', async (req, res) => {
+  const user = await loadUserData();
+  if (!Array.isArray(req.body)) {
+    return res.status(400).json({ error: 'Wishlist payload must be an array.' });
+  }
+  user.wishlist = Array.from(new Set(req.body.map(String)));
+  await saveUserData(user);
+  res.json(user.wishlist);
 });
 
 // Banner endpoints

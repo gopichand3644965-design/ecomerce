@@ -33,13 +33,15 @@ export default function Products() {
       </div>
 
       {/* Desktop Table - Hidden on mobile */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hidden sm:block">
-        <table className="w-full text-left table-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hidden sm:block overflow-x-auto">
+        <table className="w-full text-left table-auto min-w-full">
           <thead>
             <tr className="text-sm text-gray-500">
               <th className="py-2">Product</th>
               <th>SKU</th>
               <th>Price</th>
+              <th>Rating</th>
+              <th>Description</th>
               <th>Stock</th>
               <th></th>
             </tr>
@@ -47,17 +49,19 @@ export default function Products() {
           <tbody>
             {filtered.map((p) => (
               <tr key={p.id} className="border-t">
-                <td className="py-3">
-                  <div className="flex items-center gap-3">
+                <td className="py-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <img src={p.image} alt="" className="w-12 h-12 object-cover rounded" />
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-gray-100">{p.title}</div>
-                      <div className="text-xs text-gray-500">{p.colors?.join(', ')}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 break-words">{p.title}</div>
+                      <div className="text-xs text-gray-500 break-words">{p.colors?.join(', ')}</div>
                     </div>
                   </div>
                 </td>
-                <td className="text-sm text-gray-900 dark:text-gray-100">{p.productCode}</td>
+                <td className="text-sm text-gray-900 dark:text-gray-100 break-words">{p.productCode}</td>
                 <td className="text-sm text-gray-900 dark:text-gray-100">{formatPrice(p.price)}</td>
+                <td className="text-sm text-gray-900 dark:text-gray-100">{p.rating ?? '—'}</td>
+                <td className="text-sm text-gray-900 dark:text-gray-100 max-w-sm break-words">{p.description || '—'}</td>
                 <td className="text-sm text-gray-900 dark:text-gray-100">{p.stock ?? '—'}</td>
                 <td className="text-right">
                   <div className="flex items-center justify-end gap-3">
@@ -83,9 +87,11 @@ export default function Products() {
               <div className="flex gap-3 mb-3">
                 <img src={p.image} alt={p.title} className="w-20 h-20 object-cover rounded" />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">{p.title}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{p.productCode}</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 break-words">{p.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1 break-words">{p.productCode}</p>
                   <p className="text-sm text-primary font-semibold mt-2">{formatPrice(p.price)}</p>
+                  <p className="text-xs text-slate-500 mt-1">Rating: {p.rating ?? '—'}</p>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 break-words">{p.description || 'No description provided.'}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2">

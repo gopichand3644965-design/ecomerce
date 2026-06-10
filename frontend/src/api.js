@@ -72,6 +72,14 @@ export function clearCartApi() {
   return request('/user/cart', { method: 'DELETE' });
 }
 
+export function getWishlistApi() {
+  return request('/user/wishlist');
+}
+
+export function saveWishlistApi(wishlist) {
+  return request('/user/wishlist', { method: 'PUT', body: wishlist });
+}
+
 export function getUserProfileApi() {
   return request('/user/profile');
 }
