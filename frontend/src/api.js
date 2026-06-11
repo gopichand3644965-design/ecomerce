@@ -57,7 +57,7 @@ async function requestWithRetry(url, options, retries = 3, delay = 1000) {
       if (text) {
         try {
           data = JSON.parse(text);
-        } catch (e) {
+        } catch {
           // not JSON
         }
       }

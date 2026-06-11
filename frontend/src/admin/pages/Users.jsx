@@ -1,20 +1,19 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../../context/StoreContext';
-import { formatPrice } from '../../utils/formatPrice';
 
 const getCustomerKey = (shipping, orderId) => shipping?.email || orderId;
 
 export default function Users() {
   const { state } = useStore();
-  const orders = state.orders || [];
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const customers = useMemo(() => {
     const groups = {};
+    const ordersList = state.orders || [];
 
-    orders.forEach((order) => {
+    ordersList.forEach((order) => {
       const key = getCustomerKey(order.shipping, order.id);
       if (!groups[key]) {
         groups[key] = {
@@ -48,7 +47,7 @@ export default function Users() {
         lastOrderDate: lastOrder?.date,
       };
     });
-  }, [orders]);
+  }, [state.orders]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {

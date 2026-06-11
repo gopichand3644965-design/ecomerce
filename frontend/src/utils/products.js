@@ -6,7 +6,7 @@ export function getProducts() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) return JSON.parse(stored);
-  } catch (e) {
+  } catch {
     // ignore
   }
   return productsJson;
@@ -20,7 +20,9 @@ export function saveProducts(arr) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
   try {
     window.dispatchEvent(new Event('products_updated'));
-  } catch (e) {}
+  } catch {
+    // ignore
+  }
 }
 
 export function saveProduct(product) {

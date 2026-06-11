@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../../context/StoreContext';
 import { formatPrice } from '../../utils/formatPrice';
 
@@ -6,21 +6,12 @@ const DELIVERY_STATUSES = ['Placed', 'Shipped', 'Out for delivery', 'Delivered',
 
 export default function Delivery() {
   const { state, updateOrderStatus } = useStore();
-  const orders = state.orders || [];
   const [statusMap, setStatusMap] = useState({});
 
   const deliveryOrders = useMemo(
-    () => orders.filter((order) => order.status !== 'Delivered' && order.status !== 'Rejected'),
-    [orders]
+    () => (state.orders || []).filter((order) => order.status !== 'Delivered' && order.status !== 'Rejected'),
+    [state.orders]
   );
-
-  useEffect(() => {
-    const map = {};
-    orders.forEach((order) => {
-      map[order.id] = order.status;
-    });
-    setStatusMap(map);
-  }, [orders]);
 
   function handleSelect(orderId, value) {
     setStatusMap((prev) => ({ ...prev, [orderId]: value }));

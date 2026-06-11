@@ -98,7 +98,9 @@ export function AdminAuthProvider({ children }) {
   }, [token, admin, handleLogout]);
 
   useEffect(() => {
-    verify();
+    Promise.resolve().then(() => {
+      verify();
+    });
   }, [verify]);
 
   const login = useCallback(async (email, password) => {

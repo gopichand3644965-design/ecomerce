@@ -12,6 +12,22 @@ import { getBannersApi, getImageUrl } from '../api';
 
 const categories = ['All', 'Trending', 'New Arrivals', 'Plain', 'Polo', 'Graphic', 'Striped'];
 
+const ProductSection = ({ title, products }) => {
+  if (!products || products.length === 0) return null;
+  return (
+    <div className="my-6">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 px-1">{title}</h2>
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+        {products.map((p) => (
+          <div key={p.id} className="h-full">
+            <ProductCard product={p} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function Home({ searchQuery = '' }) {
   const [currentBanner, setCurrentBanner] = useState(0);
   const [banners, setBanners] = useState([]);
@@ -59,22 +75,7 @@ export default function Home({ searchQuery = '' }) {
   const newArrivals = products.filter(p => p.isNewArrival);
   const saleProducts = products.filter(p => p.discount > 0);
 
-  // Reusable section component for horizontal scrolling lists
-  const ProductSection = ({ title, products }) => {
-    if (!products || products.length === 0) return null;
-    return (
-      <div className="my-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 px-1">{title}</h2>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((p) => (
-            <div key={p.id} className="h-full">
-              <ProductCard product={p} />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
+
 
   return (
     <div className="space-y-6 pb-4">

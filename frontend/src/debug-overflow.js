@@ -31,7 +31,7 @@ function findOverflowingElements() {
         });
         el.classList.add('overflow-highlight');
       }
-    } catch (e) {
+    } catch {
       // ignore cross-origin or hidden elements
     }
   });

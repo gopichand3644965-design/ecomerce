@@ -9,6 +9,10 @@ import useProducts from '../hooks/useProducts';
 import { Link } from 'react-router-dom';
 import { FiX, FiTrash2 } from 'react-icons/fi';
 
+function generateOrderId() {
+  return `ORD-${Date.now()}`;
+}
+
 export default function CartDrawer({ isOpen, onClose }) {
   const navigate = useNavigate();
   const { state, removeFromCart, addOrder, clearCart } = useStore();
@@ -75,7 +79,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     });
 
     const newOrder = {
-      id: `ORD-${Date.now()}`,
+      id: generateOrderId(),
       date: new Date().toISOString(),
       status: 'Placed',
       shipping: {

@@ -3,9 +3,16 @@ import { useStore } from '../context/StoreContext';
 import { formatPrice } from '../utils/formatPrice';
 import { useState, useMemo } from 'react';
 
+function canRejectOrder(order) {
+  if (!order || order.status === 'Rejected') return false;
+  const orderTime = new Date(order.date).getTime();
+  const now = Date.now();
+  const hoursPassed = (now - orderTime) / (1000 * 60 * 60);
+  return hoursPassed <= 48;
+}
+
 export default function Orders() {
   const { state, updateOrderStatus } = useStore();
-  const orders = state.orders || [];
   const [filter, setFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showInvoice, setShowInvoice] = useState(false);
@@ -13,17 +20,12 @@ export default function Orders() {
   const filters = ['all', 'Placed', 'Processed', 'Shipped', 'Out for delivery', 'Delivered'];
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return orders.slice().reverse();
-    return orders.filter((o) => o.status === filter).slice().reverse();
-  }, [orders, filter]);
+    const ordersList = state.orders || [];
+    if (filter === 'all') return ordersList.slice().reverse();
+    return ordersList.filter((o) => o.status === filter).slice().reverse();
+  }, [state.orders, filter]);
 
-  const canRejectOrder = (order) => {
-    if (!order || order.status === 'Rejected') return false;
-    const orderTime = new Date(order.date).getTime();
-    const now = Date.now();
-    const hoursPassed = (now - orderTime) / (1000 * 60 * 60);
-    return hoursPassed <= 48;
-  };
+
 
   const handleReject = (orderId) => {
     updateOrderStatus(orderId, 'Rejected');

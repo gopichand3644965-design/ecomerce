@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useProducts from '../hooks/useProducts';
 import { formatPrice } from '../utils/formatPrice';
@@ -9,14 +9,15 @@ export default function ProductDetail() {
   const { id } = useParams();
   const products = useProducts();
   const product = products.find((p) => p.id === id);
-  const [mainImage, setMainImage] = useState(product?.images?.[0] || product?.image || null);
-  const productUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const [imageOverride, setImageOverride] = useState(null);
+  const mainImage = imageOverride !== null ? imageOverride : (product?.images?.[0] || product?.image || null);
 
-  useEffect(() => {
-    if (product) {
-      setMainImage(product.images?.[0] || product.image || null);
-    }
-  }, [product]);
+  const [prevProductId, setPrevProductId] = useState(id);
+  if (id !== prevProductId) {
+    setPrevProductId(id);
+    setImageOverride(null);
+  }
+  const productUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   if (!product) {
     // If products are still loading, show a loading state
@@ -62,7 +63,7 @@ export default function ProductDetail() {
                 {product.images.slice(0, 3).map((img, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setMainImage(img)}
+                    onClick={() => setImageOverride(img)}
                     className={`w-16 h-16 rounded-md overflow-hidden border-2 flex-shrink-0 ${mainImage === img ? 'border-primary' : 'border-transparent'}`}
                     aria-label={`View image ${idx + 1}`}
                   >
