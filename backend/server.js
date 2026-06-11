@@ -6,9 +6,16 @@ const { createClient } = require('@supabase/supabase-js');
 const createAdminRoutes = require('./auth/adminRoutes');
 const { authenticateAdmin } = require('./auth/middleware');
 const { verifyAdminToken } = require('./auth/token');
+const compression = require('compression');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const app = express();
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(compression());
 const PORT = process.env.PORT || 4000;
 const DATA_DIR = path.join(__dirname, 'data');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
@@ -30,6 +37,110 @@ if (isSupabaseConfigured) {
   supabase = createClient(supabaseUrl, supabaseKey);
 } else {
   console.warn('Supabase credentials not found. Set SUPABASE_URL and SUPABASE_KEY or SUPABASE_SERVICE_ROLE_KEY in .env');
+}
+
+// Serving assets
+const PRODUCTS_PUBLIC_DIR = path.join(__dirname, 'public', 'assets', 'products');
+
+// Products and Banners In-Memory Cache
+let productsCache = null;
+let bannersCache = null;
+
+function clearProductsCache() {
+  productsCache = null;
+}
+function clearBannersCache() {
+  bannersCache = null;
+}
+
+// Helper to extract base64 image data and save it to public/assets/products
+async function processBase64Image(dataString, productId, prefix = 'img') {
+  if (typeof dataString !== 'string') return dataString;
+  if (!dataString.startsWith('data:image/')) return dataString;
+
+  // Extract content type and base64 data
+  const matches = dataString.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+  if (!matches || matches.length !== 3) return dataString;
+
+  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+  const base64Data = matches[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+
+  await fs.mkdir(PRODUCTS_PUBLIC_DIR, { recursive: true });
+  const filename = `${productId}-${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+  const filePath = path.join(PRODUCTS_PUBLIC_DIR, filename);
+  await fs.writeFile(filePath, buffer);
+
+  return `/assets/products/${filename}`;
+}
+
+// Cleanup Base64 blobs for a product's main image and images array
+async function cleanProductImageBlobs(product) {
+  let modified = false;
+  const prodId = product.id || `P-${Date.now()}`;
+  if (product.image && product.image.startsWith('data:image/')) {
+    product.image = await processBase64Image(product.image, prodId, 'main');
+    modified = true;
+  }
+  if (Array.isArray(product.images)) {
+    for (let i = 0; i < product.images.length; i++) {
+      if (product.images[i] && product.images[i].startsWith('data:image/')) {
+        product.images[i] = await processBase64Image(product.images[i], prodId, `ref-${i}`);
+        modified = true;
+      }
+    }
+  }
+  return modified;
+}
+
+// Migrate Base64 product blobs from local JSON and Supabase DB
+async function migrateBase64Products() {
+  console.log('Starting Base64 product image migration scan...');
+  
+  // 1. Migrate products.json
+  try {
+    const products = await readJson(PRODUCTS_FILE, []);
+    let localModified = false;
+    for (const p of products) {
+      if (await cleanProductImageBlobs(p)) {
+        localModified = true;
+      }
+    }
+    if (localModified) {
+      await writeJson(PRODUCTS_FILE, products);
+      console.log('Successfully migrated Base64 images in products.json and saved files locally.');
+    }
+  } catch (err) {
+    console.error('Failed migrating local products.json:', err.message);
+  }
+
+  // 2. Migrate Supabase DB
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase.from('products').select('id, data');
+      if (error) throw error;
+      
+      let dbModifiedCount = 0;
+      for (const row of (data || [])) {
+        const product = row.data;
+        if (await cleanProductImageBlobs(product)) {
+          // Update in Supabase
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ data: product })
+            .eq('id', row.id);
+          if (updateError) throw updateError;
+          dbModifiedCount++;
+        }
+      }
+      if (dbModifiedCount > 0) {
+        console.log(`Successfully migrated ${dbModifiedCount} product Base64 blobs in Supabase.`);
+        clearProductsCache();
+      }
+    } catch (err) {
+      console.error('Failed migrating Supabase products table:', err.message);
+    }
+  }
 }
 
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -105,13 +216,20 @@ async function initProductsDb() {
 
 async function getProductsFromDb() {
   if (!supabase) throw new Error('Supabase not initialized');
+  if (productsCache) return productsCache;
   const { data, error } = await supabase.from('products').select('data');
   if (error) throw error;
-  return (data || []).map((row) => row.data);
+  const list = (data || []).map((row) => row.data);
+  productsCache = list;
+  return list;
 }
 
 async function getProductFromDb(id) {
   if (!supabase) throw new Error('Supabase not initialized');
+  if (productsCache) {
+    const found = productsCache.find((p) => p.id === id);
+    if (found) return found;
+  }
   const { data, error } = await supabase.from('products').select('data').eq('id', id).single();
   if (error && error.code !== 'PGRST116') throw error;
   return data ? data.data : null;
@@ -119,6 +237,7 @@ async function getProductFromDb(id) {
 
 async function createProductInDb(product) {
   if (!supabase) throw new Error('Supabase not initialized');
+  await cleanProductImageBlobs(product);
   const { error } = await supabase.from('products').insert([{ id: product.id, data: product }]);
   if (error) {
     if (isRlsError(error.message)) {
@@ -126,10 +245,12 @@ async function createProductInDb(product) {
     }
     throw error;
   }
+  clearProductsCache();
 }
 
 async function updateProductInDb(id, product) {
   if (!supabase) throw new Error('Supabase not initialized');
+  await cleanProductImageBlobs(product);
   const { error } = await supabase.from('products').update({ data: product }).eq('id', id);
   if (error) {
     if (isRlsError(error.message)) {
@@ -137,6 +258,7 @@ async function updateProductInDb(id, product) {
     }
     throw error;
   }
+  clearProductsCache();
 }
 
 async function deleteProductFromDb(id) {
@@ -148,6 +270,7 @@ async function deleteProductFromDb(id) {
     }
     throw error;
   }
+  clearProductsCache();
 }
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -179,12 +302,18 @@ app.use(cors({
       return callback(null, true);
     }
 
+    // Allow Vercel preview deployments (e.g. *.vercel.app)
+    if (origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+
     // Default fallback: if no environment variables are set to restrict origins,
     // allow the request origin (same as origin: true) for backwards compatibility
     if (allowedOrigins.length === 0 && !process.env.FRONTEND_URL) {
       return callback(null, true);
     }
 
+    console.warn(`[cors-rejection] Request rejected. Origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -194,9 +323,10 @@ app.use(cors({
 app.use(express.json({ limit: '15mb' }));
 app.use('/api/admin', createAdminRoutes({ supabase, readJson, writeJson, dataDir: DATA_DIR }));
 
-// Serve static files for banners
+// Serve static files for banners & products
 const BANNERS_PUBLIC_DIR = path.join(__dirname, 'public', 'assets', 'banners');
 app.use('/assets/banners', express.static(BANNERS_PUBLIC_DIR));
+app.use('/assets/products', express.static(PRODUCTS_PUBLIC_DIR));
 
 async function readJson(filePath, fallback = null) {
   try {
@@ -338,8 +468,10 @@ app.post('/api/products', authenticateAdmin, asyncHandler(async (req, res) => {
   if (products.some((item) => item.id === payload.id)) {
     return res.status(409).json({ error: 'Product id already exists.' });
   }
+  await cleanProductImageBlobs(payload);
   products.push(payload);
   await writeJson(PRODUCTS_FILE, products);
+  clearProductsCache();
   res.status(201).json(payload);
 }));
 
@@ -361,8 +493,10 @@ app.put('/api/products/:id', authenticateAdmin, asyncHandler(async (req, res) =>
   updated = { ...products[index], ...req.body, id: req.params.id };
   const validationError = validateProduct(updated);
   if (validationError) return res.status(400).json({ error: validationError });
+  await cleanProductImageBlobs(updated);
   products[index] = updated;
   await writeJson(PRODUCTS_FILE, products);
+  clearProductsCache();
   res.json(updated);
 }));
 
@@ -378,6 +512,7 @@ app.delete('/api/products/:id', authenticateAdmin, asyncHandler(async (req, res)
   const next = products.filter((item) => item.id !== req.params.id);
   if (next.length === products.length) return res.status(404).json({ error: 'Product not found.' });
   await writeJson(PRODUCTS_FILE, next);
+  clearProductsCache();
   res.status(204).end();
 }));
 
@@ -396,7 +531,7 @@ app.get('/api/orders', async (req, res) => {
     }
 
     if (isSupabaseConfigured) {
-      let query = supabase.from('orders').select('*');
+      let query = supabase.from('orders').select('id, customer_token, date, status, shipping, items, total');
       if (!isAdmin) {
         const customerToken = req.headers['x-customer-token'] || 'default-guest';
         query = query.eq('customer_token', customerToken);
@@ -644,9 +779,10 @@ app.put('/api/user/wishlist', async (req, res) => {
 app.get('/api/banners', async (req, res) => {
   try {
     if (isSupabaseConfigured) {
+      if (bannersCache) return res.json(bannersCache);
       const { data, error } = await supabase
         .from('banners')
-        .select('*')
+        .select('id, title, subtitle, image, display_order')
         .order('display_order', { ascending: true })
         .order('id', { ascending: true });
       if (error) throw error;
@@ -656,10 +792,12 @@ app.get('/api/banners', async (req, res) => {
           { title: 'Default Banner 1', subtitle: 'Shop our collection', image: '/assets/banners/hero1.jpg', display_order: 1 },
           { title: 'Default Banner 2', subtitle: 'New arrivals', image: '/assets/banners/hero2.jpg', display_order: 2 },
         ];
-        const { data: seeded, error: seedError } = await supabase.from('banners').insert(defaults).select();
+        const { data: seeded, error: seedError } = await supabase.from('banners').insert(defaults).select('id, title, subtitle, image, display_order');
         if (seedError) throw seedError;
+        bannersCache = seeded;
         return res.json(seeded || []);
       }
+      bannersCache = data;
       return res.json(data);
     }
 
@@ -708,6 +846,7 @@ app.post('/api/banners', authenticateAdmin, async (req, res) => {
         .select()
         .single();
       if (error) throw error;
+      clearBannersCache();
       return res.status(201).json(data);
     }
 
@@ -715,6 +854,7 @@ app.post('/api/banners', authenticateAdmin, async (req, res) => {
     const newBanner = { ...payload, id: Math.max(...banners.map(b => b.id), 0) + 1 };
     banners.push(newBanner);
     await writeJson(BANNERS_FILE, banners);
+    clearBannersCache();
     res.status(201).json(newBanner);
   } catch (err) {
     console.error('Failed to create banner:', err);
@@ -750,6 +890,7 @@ app.put('/api/banners/:id', authenticateAdmin, async (req, res) => {
         }
         throw error;
       }
+      clearBannersCache();
       return res.json(data);
     }
 
@@ -758,6 +899,7 @@ app.put('/api/banners/:id', authenticateAdmin, async (req, res) => {
     if (index === -1) return res.status(404).json({ error: 'Banner not found.' });
     banners[index] = { ...banners[index], ...payload, id: bannerId };
     await writeJson(BANNERS_FILE, banners);
+    clearBannersCache();
     res.json(banners[index]);
   } catch (err) {
     console.error('Failed to update banner:', err);
@@ -774,6 +916,7 @@ app.delete('/api/banners/:id', authenticateAdmin, async (req, res) => {
         .delete()
         .eq('id', bannerId);
       if (error) throw error;
+      clearBannersCache();
       return res.status(204).end();
     }
 
@@ -781,6 +924,7 @@ app.delete('/api/banners/:id', authenticateAdmin, async (req, res) => {
     const next = banners.filter((b) => b.id !== bannerId);
     if (next.length === banners.length) return res.status(404).json({ error: 'Banner not found.' });
     await writeJson(BANNERS_FILE, next);
+    clearBannersCache();
     res.status(204).end();
   } catch (err) {
     console.error('Failed to delete banner:', err);
@@ -819,21 +963,26 @@ app.post('/api/banners/reorder', authenticateAdmin, async (req, res) => {
 
     if (isSupabaseConfigured) {
       if (payload.length === 0) {
-        const { data } = await supabase.from('banners').select('*').order('display_order', { ascending: true });
+        const { data } = await supabase.from('banners').select('id, title, subtitle, image, display_order').order('display_order', { ascending: true });
         return res.json(data || []);
       }
 
+      const promises = [];
       for (let index = 0; index < payload.length; index++) {
         const item = payload[index];
         const id = typeof item === 'object' ? item.id : parseInt(item);
         if (id) {
-          await supabase.from('banners').update({ display_order: index }).eq('id', id);
+          promises.push(
+            supabase.from('banners').update({ display_order: index }).eq('id', id)
+          );
         }
       }
+      await Promise.all(promises);
+      clearBannersCache();
 
       const { data, error } = await supabase
         .from('banners')
-        .select('*')
+        .select('id, title, subtitle, image, display_order')
         .order('display_order', { ascending: true });
       if (error) throw error;
       return res.json(data || []);
@@ -849,6 +998,7 @@ app.post('/api/banners/reorder', authenticateAdmin, async (req, res) => {
         banners = payload;
       }
       await writeJson(BANNERS_FILE, banners);
+      clearBannersCache();
     }
     res.json(banners);
   } catch (err) {
@@ -881,10 +1031,14 @@ app.use((err, req, res, next) => {
     try {
       await initProductsDb();
       console.log('Products DB initialized and connected.');
+      // Run the migration tool to clean up existing base64 product blobs asynchronously
+      migrateBase64Products().catch((mErr) => {
+        console.error('Migration error:', mErr.message);
+      });
     } catch (err) {
       productsDbAvailable = false;
-      console.error('CRITICAL: Products DB not available on startup:', err && err.message ? err.message : err);
-      process.exit(1);
+      console.warn('WARNING: Products DB not available on startup:', err && err.message ? err.message : err);
+      console.warn('Backend will fall back to local JSON storage for this session.');
     }
   } else {
     console.log('Supabase not configured. Using local JSON fallback storage.');

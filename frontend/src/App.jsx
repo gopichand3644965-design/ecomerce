@@ -1,16 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
-import ProductDetail from './pages/ProductDetail';
 import WishlistDrawer from './components/WishlistDrawer';
-import Wishlist from './pages/Wishlist';
-import Cart from './pages/Cart';
-import Orders from './pages/Orders';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
-import AdminApp from './admin/AdminApp';
+
+// Lazy load pages for smaller bundle chunks
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AdminApp = lazy(() => import('./admin/AdminApp'));
+
+function RouteFallback() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
+      <div className="w-10 h-10 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
+      <p className="text-sm text-slate-500 animate-pulse">Loading page...</p>
+    </div>
+  );
+}
 
 export default function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -37,9 +48,11 @@ export default function App() {
 
   if (isAdmin) {
     return (
-      <Routes>
-        <Route path="/admin/*" element={<AdminApp />} />
-      </Routes>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/admin/*" element={<AdminApp />} />
+        </Routes>
+      </Suspense>
     );
   }
 
@@ -54,16 +67,18 @@ export default function App() {
       <Sidebar isOpen={isSidebarOpen} onClose={toggleSidebar} />
       <div className="max-w-7xl mx-auto w-full">
         <main className="flex-1 p-3 sm:p-4 overflow-x-hidden">
-          <Routes>
-            <Route path="/" element={<Home searchQuery={searchQuery} />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Home searchQuery={searchQuery} />} />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Home searchQuery={searchQuery} />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Home searchQuery={searchQuery} />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
       <WishlistDrawer isOpen={isWishlistOpen} onClose={closeWishlist} />

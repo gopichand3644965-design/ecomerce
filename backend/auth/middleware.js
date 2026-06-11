@@ -2,11 +2,20 @@ const rateLimit = require('express-rate-limit');
 const { verifyAdminToken } = require('./token');
 
 const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 6,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 attempts per 15 minutes (protects backend while avoiding false positive blocks)
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  skip: (req) => {
+    // Skip rate-limiting for local development loop
+    const ip = req.ip || req.connection.remoteAddress || '';
+    return ip === '127.0.0.1' || ip === '::1' || ip.includes('localhost');
+  },
+  handler: (req, res, next, options) => {
+    console.warn(`[rate-limit] BLOCKED: Too many login attempts from IP: ${req.ip} for email: ${req.body?.email}`);
+    return res.status(options.statusCode).json(options.message);
+  }
 });
 
 function getBearerToken(req) {
@@ -19,6 +28,7 @@ function getBearerToken(req) {
 function authenticateAdmin(req, res, next) {
   const token = getBearerToken(req);
   if (!token) {
+    console.warn(`[admin-auth] Rejected: No authorization token provided. Path: ${req.originalUrl} IP: ${req.ip}`);
     return res.status(401).json({ error: 'Authorization token required.' });
   }
 
@@ -27,6 +37,11 @@ function authenticateAdmin(req, res, next) {
     req.admin = payload;
     return next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      console.warn(`[admin-auth] Rejected: Token expired. ExpiredAt: ${error.expiredAt} Path: ${req.originalUrl}`);
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+    }
+    console.warn(`[admin-auth] Rejected: Token validation failed: ${error.message} Path: ${req.originalUrl}`);
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 }

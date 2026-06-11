@@ -143,7 +143,7 @@ export default function Home({ searchQuery = '' }) {
                       Shop Now
                     </motion.button>
                     <motion.a
-                      href="https://www.instagram.com/yourstore"
+                      href="https://www.instagram.com/clothiprocs?igsh=MTFzYjBodmR4cnpmeg=="
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Instagram"

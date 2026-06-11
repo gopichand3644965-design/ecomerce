@@ -63,54 +63,66 @@ function reducer(state, action) {
   }
 }
 
+const getInitialState = () => {
+  if (typeof window === 'undefined') return initialState;
+  const stored = localStorage.getItem('storeState');
+  return stored ? JSON.parse(stored) : initialState;
+};
+
 export const StoreProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, null, getInitialState);
   const cartLoadedRef = useRef(false);
   const hydratedRef = useRef(false);
 
-  // Load persisted state and orders from backend
+  // Sync state with backend in parallel
   useEffect(() => {
-    async function loadState() {
+    let mounted = true;
+    async function syncState() {
       const stored = localStorage.getItem('storeState');
-      if (stored) {
-        dispatch({ type: 'SET_STATE', payload: JSON.parse(stored) });
+      const storedState = stored ? JSON.parse(stored) : null;
+      
+      const results = await Promise.allSettled([
+        getCartApi(),
+        getWishlistApi(),
+        getOrdersApi()
+      ]);
+      
+      if (!mounted) return;
+
+      const cartRes = results[0];
+      const wishlistRes = results[1];
+      const ordersRes = results[2];
+
+      const updates = {};
+
+      if (cartRes.status === 'fulfilled' && Array.isArray(cartRes.value)) {
+        updates.cart = cartRes.value;
+      } else if (storedState && Array.isArray(storedState.cart) && storedState.cart.length > 0) {
+        saveCartApi(storedState.cart).catch(() => {});
       }
 
-      try {
-        const cart = await getCartApi();
-        if (Array.isArray(cart) && cart.length > 0) {
-          dispatch({ type: 'SET_STATE', payload: { cart } });
-        } else if (stored) {
-          const storedState = JSON.parse(stored);
-          if (Array.isArray(storedState.cart) && storedState.cart.length > 0) {
-            await saveCartApi(storedState.cart);
-          }
-        }
-      } catch {
-        // fallback to local cart if backend is not available
+      if (wishlistRes.status === 'fulfilled' && Array.isArray(wishlistRes.value)) {
+        updates.wishlist = wishlistRes.value;
+      } else if (storedState && Array.isArray(storedState.wishlist) && storedState.wishlist.length > 0) {
+        saveWishlistApi(storedState.wishlist).catch(() => {});
       }
 
-      try {
-        const wishlist = await getWishlistApi();
-        if (Array.isArray(wishlist) && wishlist.length > 0) {
-          dispatch({ type: 'SET_STATE', payload: { wishlist } });
-        }
-      } catch {
-        // fallback to local wishlist if backend is not available
+      if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+        updates.orders = ordersRes.value;
       }
 
-      try {
-        const orders = await getOrdersApi();
-        dispatch({ type: 'SET_ORDERS', payload: orders });
-      } catch {
-        // fallback to local orders if backend is not available
+      if (Object.keys(updates).length > 0) {
+        dispatch({ type: 'SET_STATE', payload: updates });
       }
 
       cartLoadedRef.current = true;
       hydratedRef.current = true;
     }
 
-    loadState();
+    syncState();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Persist local cart and wishlist state after hydration

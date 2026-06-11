@@ -48,7 +48,7 @@ export default function Header({ onMenuClick, onWishlistClick, query, setQuery }
             <FiSearch className="w-5 h-5 text-primary" />
           </button>
 
-          <a href="https://instagram.com/pandas" target="_blank" rel="noreferrer" aria-label="Instagram" className="hidden sm:block p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <a href="https://www.instagram.com/clothiprocs?igsh=MTFzYjBodmR4cnpmeg==" target="_blank" rel="noreferrer" aria-label="Instagram" className="hidden sm:block p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <FiInstagram className="w-5 h-5 text-gray-700 dark:text-gray-300 hover:text-pink-600 transition-colors" />
           </a>
           <button aria-label="Wishlist" className="p-1.5 sm:p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0" onClick={onWishlistClick}>

@@ -25,29 +25,128 @@ function getAuthToken() {
   return localStorage.getItem('adminToken');
 }
 
+const inFlightRequests = new Map();
+
+async function requestWithRetry(url, options, retries = 3, delay = 1000) {
+  const timeoutMs = options.timeout || 10000; // default 10s
+  
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    
+    let slowTimer = null;
+    if (options.onSlow) {
+      slowTimer = setTimeout(() => {
+        options.onSlow();
+      }, 3000); // Trigger callback if request takes > 3s
+    }
+
+    const id = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(id);
+      if (slowTimer) clearTimeout(slowTimer);
+      
+      const text = await response.text();
+      let data = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          // not JSON
+        }
+      }
+
+      if (!response.ok) {
+        const error = new Error(data?.error || `Request failed: ${response.status} ${response.statusText}`);
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    } catch (err) {
+      clearTimeout(id);
+      if (slowTimer) clearTimeout(slowTimer);
+
+      const isTimeout = err.name === 'AbortError';
+      const isLastRetry = i === retries - 1;
+
+      // If we got an explicit HTTP error with status in 400-499 range (like 401 Unauthorized, 403 Forbidden, 400 Bad Request),
+      // we must NOT retry since these are deterministic client failures. Retrying will only trigger rate-limiters.
+      if (err.status && err.status >= 400 && err.status < 500) {
+        throw err;
+      }
+
+      if (isLastRetry) {
+        if (isTimeout) {
+          const timeoutErr = new Error('Request timed out. Please check your connection.');
+          timeoutErr.status = 408;
+          throw timeoutErr;
+        }
+        throw err;
+      }
+      // Wait with backoff before retrying
+      await new Promise((resolve) => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+}
+
 async function request(path, options = {}) {
-  const { method = 'GET', body } = options;
+  const { method = 'GET', body, timeout, onSlow } = options;
   const token = getAuthToken();
   const custToken = getCustomerToken();
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(custToken ? { 'X-Customer-Token': custToken } : {}),
+    ...options.headers,
   };
-  const response = await fetch(`${BASE_URL}${path}`, {
+
+  const url = `${BASE_URL}${path}`;
+  const requestKey = `${method}:${url}:${body ? JSON.stringify(body) : ''}`;
+
+  if (method === 'GET') {
+    // If request is already in flight, return the same promise to prevent duplicate network calls
+    if (inFlightRequests.has(requestKey)) {
+      return inFlightRequests.get(requestKey);
+    }
+  }
+
+  const promise = requestWithRetry(url, {
+    ...options,
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    timeout,
+    onSlow
+  }).finally(() => {
+    inFlightRequests.delete(requestKey);
   });
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!response.ok) {
-    throw new Error(data?.error || `${response.status} ${response.statusText}`);
+  if (method === 'GET') {
+    inFlightRequests.set(requestKey, promise);
   }
 
-  return data;
+  return promise;
+}
+
+export function adminLoginApi(email, password, options = {}) {
+  return request('/admin/login', {
+    method: 'POST',
+    body: { email, password },
+    ...options
+  });
+}
+
+export function adminVerifyApi(options = {}) {
+  return request('/admin/verify', {
+    method: 'GET',
+    ...options
+  });
 }
 
 export function getProductsApi() {

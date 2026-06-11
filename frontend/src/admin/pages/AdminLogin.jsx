@@ -4,7 +4,7 @@ import { useAdminAuth } from '../AuthContext';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { login, admin, loading, error } = useAdminAuth();
+  const { login, admin, loading, error, isServerWaking } = useAdminAuth();
   const [email, setEmail] = useState('admin@pandasstore.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -87,12 +87,18 @@ export default function AdminLogin() {
             </div>
           )}
 
+          {isServerWaking && (
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 animate-pulse text-center">
+              Waking up backend server (Render free tier cold start may take 30-50 seconds)...
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
             className="flex w-full items-center justify-center rounded-3xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Signing in…' : 'Sign in to Admin'}
+            {loading ? (isServerWaking ? 'Waking server...' : 'Signing in…') : 'Sign in to Admin'}
           </button>
         </form>
 

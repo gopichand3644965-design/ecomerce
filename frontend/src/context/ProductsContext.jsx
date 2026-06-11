@@ -11,7 +11,7 @@ import { getProductsApi, createProductApi, updateProductApi, deleteProductApi } 
 const ProductsContext = createContext(null);
 
 export function ProductsProvider({ children }) {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => getProductsStorage() || []);
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +24,7 @@ export function ProductsProvider({ children }) {
           saveProductsStorage(fetched);
         }
       } catch {
-        setProducts(getProductsStorage());
+        // Fallback is already handled by state initialization, but let's make sure it doesn't clear it
       }
     }
 

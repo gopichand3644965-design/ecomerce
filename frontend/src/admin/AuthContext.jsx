@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { adminLoginApi, adminVerifyApi } from '../api';
 
 const AdminAuthContext = createContext(null);
 
@@ -19,72 +20,28 @@ function getStoredAdmin() {
   }
 }
 
-async function parseJsonResponse(response) {
-  const text = await response.text();
-  let data = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
-  }
-  return { response, data, text };
-}
-
 export function AdminAuthProvider({ children }) {
   const navigate = useNavigate();
   const [admin, setAdmin] = useState(getStoredAdmin());
   const [token, setToken] = useState(getStoredToken());
   const [loading, setLoading] = useState(Boolean(token));
   const [error, setError] = useState(null);
-
-  const API_BASE = import.meta.env.VITE_API_URL || '';
-  const verifyUrl = `${API_BASE}/api/admin/verify`;
-  const loginUrl = `${API_BASE}/api/admin/login`;
+  const [isServerWaking, setIsServerWaking] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
 
   const handleLogout = useCallback((redirectToLogin = true) => {
+    console.log('[admin-context] Clearing admin session.');
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminInfo');
     setToken(null);
     setAdmin(null);
     setError(null);
+    setConnectionError(null);
+    setIsServerWaking(false);
     if (redirectToLogin) {
       navigate('/admin/login', { replace: true });
     }
   }, [navigate]);
-
-  useEffect(() => {
-    async function verifyToken() {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(verifyUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const { response: verifiedResponse, data } = await parseJsonResponse(response);
-        if (!verifiedResponse.ok) {
-          throw new Error(data?.error || 'Session expired. Please log in again.');
-        }
-
-        setAdmin(data?.admin || null);
-        setError(null);
-      } catch (err) {
-        console.warn('Admin auth verify failed:', err);
-        handleLogout(false);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    verifyToken();
-  }, [token, handleLogout]);
 
   function saveSession(sessionToken, adminInfo) {
     localStorage.setItem('adminToken', sessionToken);
@@ -93,39 +50,100 @@ export function AdminAuthProvider({ children }) {
     setAdmin(adminInfo);
   }
 
+  const verify = useCallback(async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    setConnectionError(null);
+    setIsServerWaking(false);
+
+    try {
+      console.log('[admin-context] Launching session verification...');
+      const data = await adminVerifyApi({
+        timeout: 45000, // 45s for verification to handle container cold start
+        onSlow: () => {
+          console.warn('[admin-context] Verify request taking longer than 3s. Server waking triggered.');
+          setIsServerWaking(true);
+        }
+      });
+
+      console.log('[admin-context] Session verification success.');
+      
+      // If a rolling token was issued by the backend, save it
+      if (data?.token) {
+        saveSession(data.token, data.admin || admin);
+      } else {
+        setAdmin(data?.admin || null);
+      }
+      setConnectionError(null);
+    } catch (err) {
+      console.error('[admin-context] Verify session error:', err);
+      
+      // Only log out if it is an explicit 401 or 403 authorization refusal.
+      if (err.status === 401 || err.status === 403) {
+        console.warn('[admin-context] Unauthorized session detected. Redirecting to login.');
+        handleLogout(false);
+      } else {
+        // Network timeout (408), 502/503/504 server offline, or other network errors.
+        // We preserve the token to avoid kicking the user out over a transient network glitch.
+        setConnectionError(err.message || 'Server is temporarily unavailable. Please verify your connection.');
+      }
+    } finally {
+      setLoading(false);
+      setIsServerWaking(false);
+    }
+  }, [token, admin, handleLogout]);
+
+  useEffect(() => {
+    verify();
+  }, [verify]);
 
   const login = useCallback(async (email, password) => {
     setLoading(true);
     setError(null);
+    setConnectionError(null);
+    setIsServerWaking(false);
 
     try {
-      const response = await fetch(loginUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      console.log('[admin-context] Submitting login request for:', email);
+      const data = await adminLoginApi(email, password, {
+        timeout: 45000, // 45s for login in case backend is cold starting
+        onSlow: () => {
+          console.warn('[admin-context] Login taking longer than 3s. Server waking triggered.');
+          setIsServerWaking(true);
+        }
       });
 
-      const { response: loginResponse, data } = await parseJsonResponse(response);
-      if (!loginResponse.ok) {
-        throw new Error(data?.error || 'Unable to sign in.');
-      }
-
+      console.log('[admin-context] Login request success.');
       saveSession(data.token, data.admin);
       navigate('/admin/dashboard', { replace: true });
       return data.admin;
     } catch (err) {
-      setError(err.message || 'Unable to sign in.');
+      console.error('[admin-context] Login request failed:', err);
+      setError(err.message || 'Unable to sign in. Please verify your credentials or server status.');
       setLoading(false);
       throw err;
+    } finally {
+      setIsServerWaking(false);
     }
   }, [navigate]);
 
   const value = useMemo(
-    () => ({ admin, token, loading, error, login, logout: handleLogout }),
-    [admin, token, loading, error, login, handleLogout]
+    () => ({ 
+      admin, 
+      token, 
+      loading, 
+      error, 
+      isServerWaking, 
+      connectionError, 
+      login, 
+      logout: handleLogout,
+      verify
+    }),
+    [admin, token, loading, error, isServerWaking, connectionError, login, handleLogout, verify]
   );
 
   return <AdminAuthContext.Provider value={value}>{children}</AdminAuthContext.Provider>;

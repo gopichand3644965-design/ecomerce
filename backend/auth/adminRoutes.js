@@ -24,30 +24,48 @@ function createAdminRouter({ supabase, readJson, writeJson, dataDir }) {
   async function findAdminByEmail(email) {
     const normalizedEmail = normalizeEmail(email);
     const adminFile = path.join(dataDir, 'admins.json');
+    
     const loadLocalAdmin = async () => {
-      const admins = (await readJson(adminFile, [])).filter(Boolean);
-      return admins.find((admin) => normalizeEmail(admin.email) === normalizedEmail) || null;
+      console.log(`[admin-lookup] Loading local credentials from admins.json for: ${normalizedEmail}`);
+      try {
+        const admins = (await readJson(adminFile, [])).filter(Boolean);
+        const matchedAdmin = admins.find((admin) => normalizeEmail(admin.email) === normalizedEmail);
+        return matchedAdmin || null;
+      } catch (err) {
+        console.error(`[admin-lookup] Error reading local admins.json:`, err.message);
+        return null;
+      }
     };
 
     const isSupabaseConfigured = !!supabase;
 
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('id,name,email,password_hash,role')
-        .eq('email', normalizedEmail)
-        .single();
+      try {
+        console.log(`[admin-lookup] Querying Supabase database for admin: ${normalizedEmail}`);
+        const { data, error } = await supabase
+          .from('admins')
+          .select('id,name,email,password_hash,role')
+          .eq('email', normalizedEmail)
+          .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null;
+        if (error) {
+          if (error.code === 'PGRST116') {
+            console.log(`[admin-lookup] Admin not found in Supabase: ${normalizedEmail}`);
+            return null;
+          }
+          console.warn(`[admin-lookup] Supabase query returned error, falling back to local storage:`, error.message);
+          return await loadLocalAdmin();
         }
-        throw new Error(`Supabase admin lookup failed: ${error.message}`);
-      }
 
-      return data || null;
+        console.log(`[admin-lookup] Admin record found in Supabase: ${normalizedEmail}`);
+        return data || null;
+      } catch (dbErr) {
+        console.error(`[admin-lookup] Supabase connection exception for ${normalizedEmail}, falling back to local admins.json:`, dbErr.message);
+        return await loadLocalAdmin();
+      }
     }
 
+    console.log('[admin-lookup] Supabase not configured, defaulting to local admins.json');
     return loadLocalAdmin();
   }
 
@@ -55,14 +73,23 @@ function createAdminRouter({ supabase, readJson, writeJson, dataDir }) {
     const { email, password } = req.body || {};
     const validationError = validateLoginInputs(email, password);
     if (validationError) {
+      console.warn(`[admin-login] Validation failed for login attempt:`, validationError);
       return res.status(400).json({ error: validationError });
     }
 
-    console.log('[admin-login] attempt for email:', String(email || '').trim().toLowerCase());
-    const admin = await findAdminByEmail(email);
-    console.log('[admin-login] admin record found:', !!admin, 'email:', admin ? admin.email : 'n/a');
+    const normalizedEmail = normalizeEmail(email);
+    console.log(`[admin-login] Attempting login for email: ${normalizedEmail}`);
+    
+    let admin;
+    try {
+      admin = await findAdminByEmail(email);
+    } catch (lookupErr) {
+      console.error(`[admin-login] Critical exception during admin lookup for ${normalizedEmail}:`, lookupErr.message);
+      return res.status(503).json({ error: 'Database/Authentication service is temporarily unavailable. Please try again.' });
+    }
+
     if (!admin || !admin.password_hash) {
-      console.warn('[admin-login] no admin or missing password_hash for', email);
+      console.warn(`[admin-login] Failed: Admin not found or missing password hash for: ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
@@ -71,29 +98,47 @@ function createAdminRouter({ supabase, readJson, writeJson, dataDir }) {
     try {
       isMatch = await bcrypt.compare(password, admin.password_hash);
     } catch (err) {
-      console.error('[admin-login] bcrypt compare error for', email, err && err.message);
+      console.error(`[admin-login] Failed: Bcrypt comparison exception for ${normalizedEmail}:`, err.message);
       return res.status(500).json({ error: 'Internal server error.' });
     }
-    console.log('[admin-login] password match:', !!isMatch, 'for', email);
+
     if (!isMatch) {
+      console.warn(`[admin-login] Failed: Password mismatch for: ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
-    const token = signAdminToken(admin);
-    return res.json({
-      token,
-      expiresIn: process.env.JWT_EXPIRES_IN || '2h',
-      admin: {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        role: admin.role,
-      },
-    });
+    try {
+      const token = signAdminToken(admin);
+      console.log(`[admin-login] Success: Admin logged in successfully: ${normalizedEmail}`);
+      return res.json({
+        token,
+        expiresIn: process.env.JWT_EXPIRES_IN || '2h',
+        admin: {
+          id: admin.id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+        },
+      });
+    } catch (tokenErr) {
+      console.error(`[admin-login] Failed: JWT signing exception for ${normalizedEmail}:`, tokenErr.message);
+      return res.status(500).json({ error: 'Failed to generate session token.' });
+    }
   });
 
   router.get('/verify', authenticateAdmin, (req, res) => {
-    return res.json({ admin: req.admin });
+    try {
+      // Issue a fresh rolling token to implement session extension
+      const freshToken = signAdminToken(req.admin);
+      console.log(`[admin-auth] Token verify success: Extended session for ${req.admin.email}`);
+      return res.json({ 
+        admin: req.admin,
+        token: freshToken
+      });
+    } catch (err) {
+      console.error(`[admin-auth] Token verify succeeded but failed to generate rolling session:`, err.message);
+      return res.json({ admin: req.admin });
+    }
   });
 
   router.get('/profile', authenticateAdmin, (req, res) => {
