@@ -4,7 +4,7 @@
     "name": "Super Admin",
     "email": "admin@pandasstore.com",
     "role": "owner",
-    "password_hash": "$2b$10$Vt.VLBSSuHPJ7c.m.A7C8.m.Tne4I8duEpHGd0vSFd6HJdE78dUDG",
+    "password_hash": "$2b$10$tGX4/kyG7nLnV//XdYoiN.rgJ95Fbj0uW/U1U5xzTQNJjl.6krIjy",
     "created_at": "2026-06-01T00:00:00.000Z"
   }
   ,
@@ -13,7 +13,7 @@
     "name": "Gopi Admin",
     "email": "gopi@pandasstore.com",
     "role": "admin",
-    "password_hash": "$2b$10$Vt.VLBSSuHPJ7c.m.A7C8.m.Tne4I8duEpHGd0vSFd6HJdE78dUDG",
+    "password_hash": "$2b$10$tGX4/kyG7nLnV//XdYoiN.rgJ95Fbj0uW/U1U5xzTQNJjl.6krIjy",
     "created_at": "2026-06-01T12:00:00.000Z"
   }
 ]
